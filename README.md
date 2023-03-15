@@ -1,5 +1,9 @@
 # Avito favorites map
-## Display your favorite items from Avito.ru on the Google Maps.
+## Display ads positions from Avito's Favorite list with Google Maps.
+### Description
+The microservice uses Chrome cookies to gain access to the Avito account
+without the need for authorization each time it is used. Read the instruction
+below to find out capabilities of microservice.
 ---
 ### Installation:
 ```
@@ -9,21 +13,10 @@ python3 -m venv .env
 source .env/bin/activate
 pip install -r requirements.txt
 ```
-### Requirements:
-- You are logged in with Avito;
-- You accept Avito's cookies usage;
-- You give permission for "browsercookie" module to use your "physical
-browser" cookies for webdriver to get into your account without needing to get
-through manual authorization every time;
-
-### Remarks and explainations:
-This repository lets you to get all the addresses from your "Favorite" list on
-Avito. Those addresses will be stored in .csv file, which you can use to 
-display all those marks of addresses on the Google Maps.
-
-### Displaying addresses via Google Maps:
-1. Redirect to the following website: https://google.com/maps/d/u/0;
-2. Click on the "CREATE NEW MAP" button OR use the one that exists already
-(if you want to);
-3. Click "Add layer" and choose the "Import" button in panel of appended
-layer.
+### Instructions:
+1) Log in to Avito with your default browser.
+2) Launch main.py, give permission for "browsercookie" library to use Chrome
+browser cookies.
+3) After successful gaining data.csv file, redirect to the following page:
+https://google.com/maps/d/u/0 and create new map.
+4) In layers list, import data from data.csv file.

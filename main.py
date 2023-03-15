@@ -3,38 +3,63 @@ import browsercookie
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-# Import data from your physical browser
+# Gain cookies from Chrome browser
 cj = browsercookie.chrome()
-
+# Use Chrome as a webdriver
 driver = webdriver.Chrome()
-url = "https://avito.ru/favorites"
-driver.get(url)
 
-# Apply cookies for avito.ru from your physical browser to webdriver
-for cookie in cj:
-    # Apply cookies for domain we're in
-    if cookie.domain == ".avito.ru" or cookie.domain == ".www.avito.ru":
-        driver.add_cookie(({
-            'name': cookie.name,
-            'value': cookie.value,
-            'domain': cookie.domain,
-            'path': cookie.path,
-            'expires': cookie.expires
-    }))
-# Refresh webpage, apply cookies
-driver.get(url)
+# Collect needed data from Avito.ru
+def collect_addresses(cj, driver):
 
-# Find all addresses
-elements = driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")
+    url = "https://avito.ru/favorites"
+    driver.get(url)
 
-# Convert webobjects to the list
-elements = [i.text for i in elements]
+    # Apply only cookies with Avito's domain
+    for cookie in cj:
+        if cookie.domain == ".avito.ru" or cookie.domain == ".www.avito.ru":
+            driver.add_cookie(({
+                'name': cookie.name,
+                'value': cookie.value,
+                'domain': cookie.domain,
+                'path': cookie.path,
+                'expires': cookie.expires
+        }))
 
-with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(["Адреса"])
-    for element in elements:
-        writer.writerow([element])
+    # Forced page refresh
+    driver.get(url)
 
-print("CSV файл с адресами появился в текущей директории")
-driver.quit()
+    # Find all addresses
+    elements = driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")
+
+    # Convert webobjects to the list
+    elements = [i.text for i in elements]
+
+    with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Адреса"])
+        for element in elements:
+            writer.writerow([element])
+
+    print("CSV file appeared in current directory")
+
+def apply_to_maps(cj, driver):
+
+    url = "https://google.com/maps/d/u/0"
+    driver.get(url)
+
+    for cookie in cj:
+        if cookie.domain == ".google.com":
+            driver.add_cookie(({
+                'name': cookie.name,
+                'value': cookie.value,
+                'domain': cookie.domain,
+                'path': cookie.path,
+                'expires': cookie.expires
+        }))
+    
+    driver.get(url)
+
+if __name__ == '__main__':
+    # collect_addresses(cj, driver)
+    apply_to_maps(cj, driver)
+    driver.quit()
