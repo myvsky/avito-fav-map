@@ -60,7 +60,7 @@ def apply_to_maps(cj, driver):
     # If you have multiple accounts, you need to change the last symbol of the
     # variable to the number of corresponding account
     print("Connecting to your Google Maps account...")
-    url = "https://google.com/maps/d/u/1"
+    url = "https://google.com/maps/d/u/0"
     driver.get(url)
 
     for cookie in cj:
