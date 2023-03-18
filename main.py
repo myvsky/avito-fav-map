@@ -2,7 +2,11 @@ import csv
 import browsercookie
 import os
 import time
+from datetime import datetime
 import webbrowser
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
@@ -10,7 +14,11 @@ from selenium.webdriver.common.by import By
 cj = browsercookie.chrome()
 
 # Use 'headless' Chrome as a webdriver
-driver = webdriver.Chrome()
+options = Options()
+options.add_argument('window-size=1366x768')
+options.add_argument('--start-maximized')
+options.add_argument('--headless')
+driver = webdriver.Chrome(options=options)
 
 # Collect needed data from Avito.ru
 def collect_addresses(cj, driver):
@@ -38,7 +46,7 @@ def collect_addresses(cj, driver):
     adrs = driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")
 
     # Convert webobjects to the list
-    adrs = [i.text for i in elements]
+    adrs = [i.text for i in adrs]
 
     # List must not be empty
     if len(adrs) != 0:
@@ -46,7 +54,7 @@ def collect_addresses(cj, driver):
             writer = csv.writer(file)
             writer.writerow(["Адреса"])
             for adr in adrs:
-                writer.writerow([element])
+                writer.writerow([adr])
     else:
         raise Exception("You're not logged in Avito or your Favorite list is empty")
 
@@ -75,13 +83,23 @@ def apply_to_maps(cj, driver):
 
     # Apply cookies
     driver.get(url)
+    print("Connected to account accroding to your cookies. Creaing new map...")
 
     # Click on the "Create new map" button
-    button = driver.find_element(By.XPATH, '//*[@id="docs-editor"]/div[2]/div[2]/div[1]/div[1]/div/span/span')
+    button = driver.find_element(By.XPATH, '//*[@id="docs-editor"]/div[2]/div[2]/div[1]/div[1]/div')
     button.click()
     driver.implicitly_wait(10)
 
-    print("Successfully! Creating new map which contains exported addresses")
+    # Rename the map
+    button = driver.find_element(By.XPATH, '//*[@id="map-title-desc-bar"]/div[1]')
+    button.click()
+    driver.implicitly_wait(10)
+    inp = driver.find_element(By.XPATH, '//*[@id="update-map"]//div//input')
+    inp.send_keys(f'Avito Favorite {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    # Confirm
+    button = driver.find_element(By.XPATH, '//*[@id="update-map"]/div[3]/button[1]')
+    button.click()
+    driver.implicitly_wait(10)
 
     # Open import overlay
     button = driver.find_element(By.XPATH, '//*[@id="ly0-layerview-import-link"]')
@@ -119,17 +137,12 @@ def apply_to_maps(cj, driver):
     print("You'll be redirected to the Google Maps page in 10 seconds")
     # Wait ten seconds until the page is loaded and saved
     time.sleep(10)
+    url = driver.current_url
     webbrowser.open(url)
 
     
 
 if __name__ == '__main__':
-    try:
-        collect_addresses(cj, driver)
-    except:
-        print("Something went wrong while collecting addresses from Avito. Check your internet connection")
-    try:
-        apply_to_maps(cj, driver)
-    except:
-        print("Something went wrong while importing data.csv to Google Maps. Check your internet connection and if you are logged in")
+    # collect_addresses(cj, driver)
+    apply_to_maps(cj, driver)
     driver.quit()

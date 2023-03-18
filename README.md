@@ -2,7 +2,8 @@
 ## Display ads positions from Avito's Favorite list with Google Maps.
 ### Description
 The microservice uses Chrome cookies to gain access to the Avito and Google Maps
-accounts without the need for authorization each time it is used.
+accounts without the need for authorization each time it is used. Need to keep
+log in to accounts of both services. Cookies must be up-to-date.
 
 ### Installation:
 ```
@@ -14,17 +15,21 @@ pip install -r requirements.txt
 ```
 
 ### Instructions
-1. Log in to Avito and Google Maps with Chrome browser.
-2. Launch main.py, give permission for "browsercookie" library to use Chrome
+1. Log in to Avito account with Chrome browser.
+2. Log in to Google Maps account with Chrome browser.
+3. Launch main.py, give permission for "browsercookie" library to use Chrome
 browser cookies.
-3. After successful gaining data.csv file, redirect to the following page:
-https://google.com/maps/d/u/0 and create new map.
-4. In layers list, import data from data.csv file.
+As it was mentioned in description, all you need for successful running of
+microservice is having up-to-date cookies of your accounts. From the server
+side, it will seem like you're not using any automated software to access 
+and use data.
 
-### Recommendations
+### Additions
 
-1. If you have multiple Google Accounts and don't want to use the default (0)
-one, you must change url in the apply_to_maps function according to comments
-above the variable.
-2. If you'd like to use any other than Chrome browser, you must refactor the
+• If you have multiple Google Accounts, you can switch between them by editing
+url in the apply_to_maps function.
+• If you'd like to use any other than Chrome browser, you must refactor the
 code according to your needs.
+• This repository was tested on Unix system (Mac OS). If you are getting exceptions
+in code using any other system, it was expected. We offer the user to modify the 
+code to suit the features of their operating system as a simple exercise.
