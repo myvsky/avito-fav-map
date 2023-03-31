@@ -1,5 +1,5 @@
-# Avito favorites map
-## Display ads positions from Avito's Favorite list with Google Maps.
+# Avito map of Favorites list
+## Display ads positions from Favorites list with Google Maps.
 ### Description
 The microservice use Chrome cookies to gain access to the Avito and Google Maps
 accounts without the need for authorization each time it is used. Need to keep
