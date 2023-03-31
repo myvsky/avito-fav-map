@@ -12,11 +12,10 @@ from selenium.webdriver.common.by import By
 
 
 # Confirmation
-input("""Confirm your agreement with microservice's policy:
+print("""By proceeding you agree with microservice's policy:
 * Will use your Chrome's browser cookies
 * You must be logged into Google Maps and Avito accounts
-* You will not abuse the traffic, otherwise your IP will be blocked by Avito
-Press ENTER to confirm and continue.\n\n""")
+* You will not abuse the traffic, otherwise your IP will be blocked by Avito\n\n""")
 
 # Gain cookies from Chrome browser
 cj = browser_cookie3.chrome()
@@ -35,6 +34,7 @@ def collect_addresses(cj, driver):
     url = "https://avito.ru/favorites"
     driver.get(url)
     # Apply only cookies with Avito's domain
+    print("Loading required")
     for cookie in cj:
         if ".avito.ru" in cookie.domain:
             driver.add_cookie({
@@ -42,25 +42,40 @@ def collect_addresses(cj, driver):
                 "value": cookie.value
         })
 
-    # Forced page refresh
+    # Apply cookies with forced page refresh
+    print("Applying cookies and refreshiing the page...")
     driver.get(url)
     print("Successfully! Exporting the address lines of your Favorite ads...")
-    # Find all the addresses
-    adrs = driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")
 
-    # Convert webobjects to the list
-    adrs = [i.text for i in adrs]
+    # Find all the addresses, convert it to the text format
+    adrs = [i.text for i in driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")]
+
     # List must not be empty
-    if len(adrs) != 0:
-        with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Адреса"])
-            for adr in adrs:
-                writer.writerow([adr])
-    else:
+    if len(adrs) == 0:
         # Suggest for authorization in browser and forced microservice stopping
-        webbrowser.open("https://www.avito.ru/#login?authsrc=h")
+        webbrowser.open(url)
         raise Exception("You're not logged in Avito or your Favorite list is empty")
+
+    # 20 is the maximum amount of ads displayed on the page. Ask if we need to load
+    # few 'pages' of ads
+    while len(adrs) % 20 == 0:
+        inp = input("""Found more than 20 ads in your favorites list. Load more ads?
+y/n: """).lower()
+        # While we don't have correct answer from user, we won't move on
+        while inp not in ["y", "n"]:
+            continue
+        if inp == 'n':
+            break
+        # Scroll down to get more ads
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        [adrs.append(i.text) for i in driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")]
+
+    with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Адреса"])
+        # Export unique text instead of web object
+        for adr in set(adrs):
+            writer.writerow([adr])
 
     print("CSV file appeared in current directory")
 
@@ -136,9 +151,9 @@ def apply_to_maps(cj, driver):
         button = driver.find_element(By.NAME, "name_step_ok")
         button.click()
         print("All done! Saving the result to your account...") 
-        print("You'll be redirected to the Google Maps page in 10 seconds")
-        # Wait ten seconds until the page is loaded and saved
-        time.sleep(10)
+        print("You'll be redirected to the Google Maps page in 5 seconds")
+        # Wait 5 seconds until the page is loaded and saved
+        time.sleep(5)
         url = driver.current_url
         webbrowser.open(url)
     except:
