@@ -43,12 +43,14 @@ def collect_addresses(cj, driver):
         })
 
     # Apply cookies with forced page refresh
-    print("Applying cookies and refreshiing the page...")
+    print("Applying cookies and refreshing the page...")
     driver.get(url)
     print("Successfully! Exporting the address lines of your Favorite ads...")
 
+    # All the elements containing addresses
+    adrs_reference = driver.find_elements(By.XPATH, "//*[contains(@class, 'location-addressLine')]")
     # Find all the addresses, convert it to the text format
-    adrs = [i.text for i in driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")]
+    adrs = [i.text for i in adrs_reference]
 
     # List must not be empty
     if len(adrs) == 0:
@@ -68,7 +70,7 @@ y/n: """).lower()
             break
         # Scroll down to get more ads
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-        [adrs.append(i.text) for i in driver.find_elements(By.CLASS_NAME, "location-addressLine-fHEor")]
+        [adrs.append(i.text) for i in adrs_reference]
 
     with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
         writer = csv.writer(file)
@@ -129,12 +131,9 @@ def apply_to_maps(cj, driver):
         driver.switch_to.frame(iframe)
         driver.implicitly_wait(10)
 
-        # Find the import button, make it an input and feed a file to it
-        target = driver.find_element(By.XPATH, '//*[@id=":n"]/div')
-        JS_DROP_FILE="    var target = arguments[0],        offsetX = arguments[1],        offsetY = arguments[2],        document = target.ownerDocument || document,        window = document.defaultView || window;    var input = document.createElement('INPUT');    input.type = 'file';    input.onchange = function () {      var rect = target.getBoundingClientRect(),          x = rect.left + (offsetX || (rect.width >> 1)),          y = rect.top + (offsetY || (rect.height >> 1)),          dataTransfer = { files: this.files };      ['dragenter', 'dragover', 'drop'].forEach(function (name) {        var evt = document.createEvent('MouseEvent');        evt.initMouseEvent(name, !0, !0, window, 0, 0, 0, x, y, !1, !1, !1, !1, 0, null);        evt.dataTransfer = dataTransfer;        target.dispatchEvent(evt);      });      setTimeout(function () { document.body.removeChild(input); }, 25);    };    document.body.appendChild(input);    return input;"
-        parent = target.parent
-        file_input = parent.execute_script(JS_DROP_FILE, target, 0, 0)
-        file_input.send_keys(os.path.join(os.getcwd(), 'data.csv'))
+        # Feed file into the input field
+        target = driver.find_element(By.XPATH, "//input[contains(@accept, '.CSV')]")
+        target.send_keys(os.path.join(os.getcwd(), 'data.csv'))
         driver.implicitly_wait(10)
 
         # Confirm and apply addresses to the new map
