@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 
 
 # Confirmation
-print("""By proceeding you agree with microservice's policy:
+print("""\nBy proceeding you agree with microservice's policy:
 * Will use your Chrome's browser cookies
 * You must be logged into Google Maps and Avito accounts
 * You will not abuse the traffic, otherwise your IP will be blocked by Avito\n\n""")
@@ -34,7 +34,7 @@ def collect_addresses(cj, driver):
     url = "https://avito.ru/favorites"
     driver.get(url)
     # Apply only cookies with Avito's domain
-    print("Loading required")
+    print("Applying cookies and refreshing the page...")
     for cookie in cj:
         if ".avito.ru" in cookie.domain:
             driver.add_cookie({
@@ -43,41 +43,39 @@ def collect_addresses(cj, driver):
         })
 
     # Apply cookies with forced page refresh
-    print("Applying cookies and refreshing the page...")
     driver.get(url)
-    print("Successfully! Exporting the address lines of your Favorite ads...")
+    print("Successfully! Exporting the address lines of your Favorite ads...\n")
 
-    # All the elements containing addresses
-    adrs_reference = driver.find_elements(By.XPATH, "//*[contains(@class, 'location-addressLine')]")
-    # Find all the addresses, convert it to the text format
-    adrs = [i.text for i in adrs_reference]
+    # Find address elements
+    adrs = driver.find_elements(By.XPATH, "//*[contains(@class, 'location-addressLine')]")
 
-    # List must not be empty
-    if len(adrs) == 0:
+    # Adrs list must not be empty
+    if not adrs:
         # Suggest for authorization in browser and forced microservice stopping
         webbrowser.open(url)
-        raise Exception("You're not logged in Avito or your Favorite list is empty")
-
-    # 20 is the maximum amount of ads displayed on the page. Ask if we need to load
-    # few 'pages' of ads
+        raise Exception("It seems like we haven't found any items in your list. Maybe the list is empty or you're not logged in?")
     while len(adrs) % 20 == 0:
-        inp = input("""Found more than 20 ads in your favorites list. Load more ads?
-y/n: """).lower()
-        # While we don't have correct answer from user, we won't move on
-        while inp not in ["y", "n"]:
+        print("We've reached page limit = 20 ads per page. Load more ads?\n")
+        ans = input("y/n: ")
+        while ans.lower() not in ["y", "n"]:
             continue
-        if inp == 'n':
+        if ans == 'n':
             break
-        # Scroll down to get more ads
-        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-        [adrs.append(i.text) for i in adrs_reference]
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # Load more ad elements
+        adrs = driver.find_elements(By.XPATH, "//span[contains(@class, 'location-addressLine')]")
+
+    hrefs = driver.find_elements(By.XPATH, "//div[contains(@class, 'item-snippet-column-2')]/a")
+    # Pair each href and adr
+    adr_and_href = [[adr.text, href.get_attribute('href')] for adr, href in zip(adrs, hrefs)]
 
     with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Адреса"])
+        # Header row containing two columns
+        writer.writerow(["Addresses", "Links"])
         # Export unique text instead of web object
-        for adr in set(adrs):
-            writer.writerow([adr])
+        for i, (adr,link) in enumerate(adr_and_href):
+            writer.writerow([adr, link])
 
     print("CSV file appeared in current directory")
 
@@ -144,7 +142,7 @@ def apply_to_maps(cj, driver):
         button = driver.find_element(By.NAME, "location_step_ok")
         button.click()
         driver.implicitly_wait(10)
-        button = driver.find_element(By.ID, "upload-radio-0")
+        button = driver.find_element(By.ID, "upload-radio-1")
         button.click()
         driver.implicitly_wait(10)
         button = driver.find_element(By.NAME, "name_step_ok")
