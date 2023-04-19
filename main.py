@@ -13,7 +13,7 @@ from selenium.webdriver.common.by import By
 
 # Confirmation
 print("""\nBy proceeding you agree with microservice's policy:
-* Will use your Chrome's browser cookies
+* Microservice will use your Chrome's browser cookies, which can be considered as security danger
 * You must be logged into Google Maps and Avito accounts
 * You will not abuse the traffic, otherwise your IP will be blocked by Avito\n\n""")
 
