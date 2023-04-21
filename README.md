@@ -1,9 +1,9 @@
-# Avito "Favorite" list map
-## Display ads positions from Avito's "Favorite" list with Google Maps.
+# Avito Favorites Map
+## Display ads positions from Avito Favorites with Yandex Maps and Geocoder API.
 
 <img src="https://raw.githubusercontent.com/mayevskaya/mayevskaya/3087a0b60e0ba4b1bf9ad43e46ff3f64c086ddee/.src/rpg_cat.png" align=left width=8%>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=10&duration=1000&color=A08BD0&multiline=true&repeat=false&width=510&height=75&lines=This+is+the+first+Mayevskaya's+problem+in+production;programming.+The+microservice+outputs+positions;of+ads+from+Avito+Favorites+list.)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=10&duration=4000&color=A08BD0&multiline=true&repeat=false&width=510&height=75&lines=This+is+the+first+Mayevskaya's+problem+in+production;programming.+The+microservice+outputs+positions;of+ads+from+Avito+Favorites+list.)](https://git.io/typing-svg)
 
 ### **_Approach_**
 We use cookies from browser specified in `settings.ini`. 
