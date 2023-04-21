@@ -118,10 +118,9 @@ def display_addresses_on_map() -> str:
     '''
 
     # Save the HTML content to a file
-    with open('renderedMap.html', 'w') as f:
-        f.write(html_content)
-
-    print('renderedMap.html file has been created.')
+    open('renderedMap.html', 'w').write(html_content)
+    
+    print('renderedMap.html file has been created. You can access it in current work directory anytime.')
 
 
 def get_address_coords(data=parse_page()) -> str:
