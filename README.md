@@ -3,16 +3,29 @@
 
 <img src="https://raw.githubusercontent.com/mayevskaya/mayevskaya/3087a0b60e0ba4b1bf9ad43e46ff3f64c086ddee/.src/rpg_cat.png" align=left width=8%>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=9&duration=4550&color=A08BD0&multiline=true&repeat=false&width=720&height=75&lines=Hi!+This+is+the+first+Mayevskaya's+intershipment+problem.+The+purpose+is+making+a;microservice+for+displaying+ads+from+Avito+"Favorite"+list+in+the+visual+way,+on;the+Google+Maps+in+particular.+There+are+no+API+usage,+pure+parsing+with+Python.;Find+more+details+and+approach+below.)](https://git.io/typing-svg)
-<details>
-<summary>TL;DR</summary>
-This is my first intershipment problem I've ever solved. The purpose of this project is visual interpreting ads from Avito "Favorite" list. In particular, the position of each ad was displayed on the Google Maps. No API usage, only pure parsing with Python. 
-</details>
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=10&duration=1000&color=A08BD0&multiline=true&repeat=false&width=510&height=75&lines=This+is+the+first+Mayevskaya's+problem+in+production;programming.+The+microservice+outputs+positions;of+ads+from+Avito+Favorites+list.)](https://git.io/typing-svg)
 
-### Approach
-The microservice use Chrome cookies to gain access to the Avito and Google Maps
-accounts without the need for authorization each time it is used. Need to keep
-log in to accounts of both services. Cookies must be up-to-date.
+### **_Approach_**
+We use cookies from browser specified in `settings.ini`. 
+You may use one of the following browsers for cookies retrieving:
+|Name In Configuration|Full Name|
+|-|-|-|
+|chrome|Google Chrome|
+|firefox|Mozilla Firefox|
+|opera|Opera|
+gx|Opera GX|
+edge|Microsoft Edge
+chromium|Chromium
+brave|Brave
+vivaldi|Vivaldi
+safari|Safari
+
+### **_Instructions_**
+1. Log in to Avito in any browser that is specified in the list above.
+2. Get Geocoder API key from Yandex.
+3. Insert correct browser name (according to the table above) and API key to the corresponding
+variables in `settings.ini`.
+4. Launch main.py.
 
 ### Installation
 ```
@@ -22,14 +35,3 @@ python3 -m venv .env
 source .env/bin/activate
 pip install -r requirements.txt
 ```
-
-### Instructions
-1. Log in to Avito account with Chrome browser.
-2. Log in to Google Maps account with Chrome browser.
-3. Launch main.py, give permission for "browser_cookie3" library to use Chrome (if needed)
-
-### Additions
-
-• If you have multiple Google Accounts, you can switch between them by editing
-url in the apply_to_maps function.
-• Google Maps complying on data incorrections from N rows is not the problem of the code, it's Google Maps bug.
