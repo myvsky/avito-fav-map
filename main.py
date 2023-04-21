@@ -1,166 +1,158 @@
-import csv
-import browser_cookie3
-import os
-import time
 import webbrowser
-from datetime import datetime
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium import webdriver
-from selenium.webdriver.common.by import By
+import os
+import configparser
+import ssl
+import requests
+import urllib.parse
+import browser_cookie3
+
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util import ssl_
+from bs4 import BeautifulSoup
 
 
-# Confirmation
-print("""\nBy proceeding you agree with microservice's policy:
-* Microservice will use your Chrome's browser cookies, which can be considered as security danger
-* You must be logged into Google Maps and Avito accounts
-* You will not abuse the traffic, otherwise your IP will be blocked by Avito\n\n""")
+# Get info from
+config = configparser.ConfigParser()
+config.read('settings.ini')
 
-# Gain cookies from Chrome browser
-cj = browser_cookie3.chrome()
+browser = config.get('general', 'browser')
+API_key = config.get('general', 'API_key')
 
-# Use 'headless' Chrome as a webdriver
-options = Options()
-options.add_argument('window-size=1366x768')
-options.add_argument('--start-maximized')
-options.add_argument('--headless')
-driver = webdriver.Chrome(options=options, executable_path="chromedriver")
+# Get cookiejar
+def get_cj() -> dict: 
 
-# Collect needed data from Avito.ru
-def collect_addresses(cj, driver):
+    # Regular cookie jar picking
+    match browser.lower():
+        case "chrome": cj = browser_cookie3.chrome()
+        case "firefox": cj = browser_cookie3.firefox()
+        case "opera": cj = browser_cookie3.opera()
+        case "gx": cj = browser_cookie3.opera_gx()
+        case "edge": cj = browser_cookie3.edge()
+        case "chromium": cj = browser_cookie3.chromium()
+        case "brave": cj = browser_cookie3.brave()
+        case "vivaldi": cj = browser_cookie3.vivaldi()
+        case "safari": cj = browser_cookie3.safari()
+        case _: raise Exception("Wrong browser name found in `settings.ini`. Killing the task...")
 
-    print("Connecting to your Avito account...")
-    url = "https://avito.ru/favorites"
-    driver.get(url)
-    # Apply only cookies with Avito's domain
-    print("Applying cookies and refreshing the page...")
-    for cookie in cj:
-        if ".avito.ru" in cookie.domain:
-            driver.add_cookie({
-                "name": cookie.name,
-                "value": cookie.value
-        })
-
-    # Apply cookies with forced page refresh
-    driver.get(url)
-    print("Successfully! Exporting the address lines of your Favorite ads...\n")
-
-    # Find address elements
-    adrs = driver.find_elements(By.XPATH, "//*[contains(@class, 'location-addressLine')]")
-
-    # Adrs list must not be empty
-    if not adrs:
-        # Suggest for authorization in browser and forced microservice stopping
-        webbrowser.open(url)
-        raise Exception("It seems like we haven't found any items in your list. Maybe the list is empty or you're not logged in?")
-    while len(adrs) % 20 == 0:
-        print("We've reached page limit = 20 ads per page. Load more ads?\n")
-        ans = input("y/n: ")
-        while ans.lower() not in ["y", "n"]:
-            continue
-        if ans == 'n':
-            break
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        # Load more ad elements
-        adrs = driver.find_elements(By.XPATH, "//span[contains(@class, 'location-addressLine')]")
-
-    hrefs = driver.find_elements(By.XPATH, "//div[contains(@class, 'item-snippet-column-2')]/a")
-    # Pair each href and adr
-    adr_and_href = [[adr.text, href.get_attribute('href')] for adr, href in zip(adrs, hrefs)]
-
-    with open("data.csv", mode="w", encoding='utf-8', newline='') as file:
-        writer = csv.writer(file)
-        # Header row containing two columns
-        writer.writerow(["Addresses", "Links"])
-        # Export unique text instead of web object
-        for i, (adr,link) in enumerate(adr_and_href):
-            writer.writerow([adr, link])
-
-    print("CSV file appeared in current directory")
+    return cj
 
 
-def apply_to_maps(cj, driver):
+# Get contents of page
+def get_page(cj=get_cj()) -> str:
 
-    # Load page and cookies
-    # url : Google Maps of concrete user
-    # If you have multiple accounts, you need to change the last symbol of the
-    # variable to the number of corresponding account
-    print("Connecting to your Google Maps account...")
-    url = "https://google.com/maps/d/u/0"
-    driver.get(url)
+    # Ciphers for encoding/decoding sensitive data that Avito use
+    CIPHERS = """ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:AES256-SHA"""
 
-    for cookie in cj:
-        if ".google.com" == cookie.domain:
-            driver.add_cookie(({
-                'name': cookie.name,
-                'value': cookie.value,
-                'domain': cookie.domain
-        }))
+    # Define SSL/TLS options
+    ssl_options = ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
 
-    # Apply cookies
-    driver.get(url)
-    print("Connected to account accroding to your cookies. Creaing new map...")
-    # Click on the "Create new map" button
-    try:
-        button = driver.find_element(By.XPATH, '//*[@id="docs-editor"]/div[2]/div[2]/div[1]/div[1]/div')
-        button.click()
-        driver.implicitly_wait(10)
+    # Create a requests session
+    session = requests.session()
 
-        # Rename the map
-        button = driver.find_element(By.XPATH, '//*[@id="map-title-desc-bar"]/div[1]')
-        button.click()
-        driver.implicitly_wait(10)
-        inp = driver.find_element(By.XPATH, '//*[@id="update-map"]//div//input')
-        inp.send_keys(f'Avito Favorite {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-        # Confirm
-        button = driver.find_element(By.XPATH, '//*[@id="update-map"]/div[3]/button[1]')
-        button.click()
-        driver.implicitly_wait(10)
+    # Create a custom SSL context using ssl_.create_urllib3_context
+    ctx = ssl_.create_urllib3_context(ciphers=CIPHERS, cert_reqs=ssl.CERT_REQUIRED, options=ssl_options)
 
-        # Open import overlay
-        button = driver.find_element(By.XPATH, '//*[@id="ly0-layerview-import-link"]')
-        button.click()
-        driver.implicitly_wait(10)
+    # Mount the custom SSL context to the session for HTTPS requests
+    adapter = HTTPAdapter(pool_maxsize=10, max_retries=3)
+    adapter.init_poolmanager(connections=10, maxsize=10, ssl_context=ctx)
+    session.mount("https://", adapter)
 
-        # Switch to overlay to navigate in its elements
-        picker = driver.find_element(By.CLASS_NAME, 'picker-dialog-content')
-        iframe = picker.find_element(By.TAG_NAME, 'iframe')
-        driver.switch_to.frame(iframe)
-        driver.implicitly_wait(10)
+    # Get a URL-encoded string
+    encoded_response = session.request('GET', 'https://www.avito.ru/favorites', cookies=cj)
 
-        # Feed file into the input field
-        target = driver.find_element(By.XPATH, "//input[contains(@accept, '.CSV')]")
-        target.send_keys(os.path.join(os.getcwd(), 'data.csv'))
-        driver.implicitly_wait(10)
+    # Instantly decode it and return the result
+    return urllib.parse.unquote(encoded_response.text)
 
-        # Confirm and apply addresses to the new map
-        driver.switch_to.default_content()
-        button = driver.find_element(By.ID, "upload-checkbox-0")
-        button.click()
-        driver.implicitly_wait(10)
-        button = driver.find_element(By.NAME, "location_step_ok")
-        button.click()
-        driver.implicitly_wait(10)
-        button = driver.find_element(By.ID, "upload-radio-1")
-        button.click()
-        driver.implicitly_wait(10)
-        button = driver.find_element(By.NAME, "name_step_ok")
-        button.click()
-        print("All done! Saving the result to your account...") 
-        print("You'll be redirected to the Google Maps page in 5 seconds")
-        # Wait 5 seconds until the page is loaded and saved
-        time.sleep(5)
-        url = driver.current_url
-        webbrowser.open(url)
-    except:
-        webbrowser.open(driver.current_url)
-        print("""It seems like you're not logged in to Google Maps account.
-Log in to your account in Chrome browser and come back.""")
 
+# Parse addresses, names and links of ads
+def parse_page(html=get_page()) -> list:
+    # Parse document
+    soup = BeautifulSoup(html, 'html.parser')
     
+    # Get all the ads
+    ads = soup.find_all(lambda x: x.has_attr('class') and "item-snippet-root" in ''.join(x['class']))
 
-if __name__ == '__main__':
-    collect_addresses(cj, driver)
-    apply_to_maps(cj, driver)
-    driver.quit()
+    data = []
+    for ad in ads:
+        # To avoid absence of links, check it on NoneType
+        adr = ad.find(lambda x: x.has_attr('class') and 'location-addressLine' in ''.join(x['class']))
+        adr = None if not adr else adr.text
+        name = ad.find(lambda x: x.has_attr('class') and x.name == "strong" and 'styles-module' in ''.join(x['class']))
+        name = None if not name else name.text
+        link = ad.find(lambda x: x.has_attr('class') and x.name == 'a' and 'css' in ''.join(x['class']))
+        link = None if not link else f"https://avito.ru{link['href']}"
+
+        # Connect each data with each other
+        data.append([
+            adr,
+            name,
+            link
+            ])
+
+    return data
+
+
+import requests
+
+def display_addresses_on_map() -> str:
+    # Create the HTML content
+    html_content = f'''
+    <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Avito Favorites Map</title>
+        <script src="https://api-maps.yandex.ru/2.1/?lang=en_US" type="text/javascript"></script>
+        <script>
+            ymaps.ready(init);
+            function init() {{
+                var myMap = new ymaps.Map("map", {{
+                    center: [55.76, 37.64], // Set the initial center of the map
+                    zoom: 10 // Set the initial zoom level of the map
+                }});
+
+                // Iterate over the addresses and create placemarks for each address
+                {get_address_coords()}
+
+            }}
+        </script>
+        <style>body{{background-color:rgb(45, 45, 50);margin:0;}}#map{{width:70%;height:100%;position:absolute;right:0;}}#desc{{width:30%;height:max-content;}}</style>
+    </head>
+    <body><div id="map"></div></html>
+    '''
+
+    # Save the HTML content to a file
+    with open('renderedMap.html', 'w') as f:
+        f.write(html_content)
+
+    print('renderedMap.html file has been created.')
+
+
+def get_address_coords(data=parse_page()) -> str:
+
+    # Sort information from list
+    addresses = [k[0] for k in data]
+    names = [k[1] for k in data]
+    links = [k[2] for k in data]
+    placemark_js = ""
+    for i in range(len(addresses)):
+        geocode_url = f"https://geocode-maps.yandex.ru/1.x/?apikey={API_key}&format=json&geocode={addresses[i]}"
+        try:
+            response = requests.get(geocode_url).json()
+            coords = response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
+            lat, lon = coords.split()[::-1]
+            placemark_js += f'''
+                var placemark = new ymaps.Placemark([{lat}, {lon}], {{
+                    hintContent: '{names[i].title()}',
+                    balloonContent: '{links[i]}'
+                }});
+                myMap.geoObjects.add(placemark);
+            '''
+        except KeyError:
+            raise ValueError(f"Failed to retrieve coordinates for ad (name: {names[i]}, address: {addresses[i]}, link: {links[i]} from Yandex Geocoder API.")
+
+    return placemark_js
+
+
+
+if __name__ == "__main__":
+    print("Applying data to the map...")
+    display_addresses_on_map()
+    webbrowser.open(f"file://{os.getcwd()}/renderedMap.html")
+    print("All done! You can check the resulting work in `map.html` anytime.")
