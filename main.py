@@ -112,16 +112,26 @@ def display_addresses_on_map() -> str:
 
             }}
         </script>
-        <style>body{{background-color:rgb(45, 45, 50);margin:0;}}#map{{width:70%;height:100%;position:absolute;right:0;}}#desc{{width:30%;height:max-content;}}</style>
+        <style>body{{color:aliceblue;background-color:rgb(45,45,50);margin:0;}}#map{{width:70%;height:100%;position:absolute;right:0;}}#desc{{width:30%;height:max-content;}}</style>
     </head>
-    <body><div id="map"></div></html>
+    <body><div id="map"></div><div id="desc">{get_text_info()}</div></body></html>
     '''
 
     # Save the HTML content to a file
     open('renderedMap.html', 'w').write(html_content)
-    
+
     print('renderedMap.html file has been created. You can access it in current work directory anytime.')
 
+
+def get_text_info(data=parse_page()) -> str:
+    response = "Name\t\t\tAddress"
+    addresses = [k[0] for k in data]
+    names = [k[1] for k in data]
+    links = [k[2] for k in data]
+    for i in range(len(addresses)):
+        response+=f"<p><a href={links[i]}>{names[i]}</a>\t\t{addresses[i]}</p>"
+
+    return response
 
 def get_address_coords(data=parse_page()) -> str:
 
