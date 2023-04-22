@@ -18,6 +18,7 @@ config.read('settings.ini')
 browser = config.get('general', 'browser')
 API_key = config.get('general', 'API_key')
 
+
 # Get cookiejar
 def get_cj() -> dict: 
 
@@ -71,16 +72,19 @@ def parse_page(html=get_page()) -> list:
     
     # Get all the ads
     ads = soup.find_all(lambda x: x.has_attr('class') and "item-snippet-root" in ''.join(x['class']))
-
+    
     data = []
     for ad in ads:
         # To avoid absence of links, check it on NoneType
         adr = ad.find(lambda x: x.has_attr('class') and 'location-addressLine' in ''.join(x['class']))
-        adr = None if not adr else adr.text
+        if not adr: continue
+        else: adr = adr.text
         name = ad.find(lambda x: x.has_attr('class') and x.name == "strong" and 'styles-module' in ''.join(x['class']))
-        name = None if not name else name.text
+        if not name: continue
+        else: name = name.text
         link = ad.find(lambda x: x.has_attr('class') and x.name == 'a' and 'css' in ''.join(x['class']))
-        link = None if not link else f"https://avito.ru{link['href']}"
+        if not link: continue
+        else: link = f"https://avito.ru{link['href']}"
 
         # Connect each data with each other
         data.append([
@@ -88,50 +92,19 @@ def parse_page(html=get_page()) -> list:
             name,
             link
             ])
-
     return data
 
 
-import requests
-
-def display_addresses_on_map() -> str:
-    # Create the HTML content
-    html_content = f'''
-    <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Avito Favorites Map</title>
-        <script src="https://api-maps.yandex.ru/2.1/?lang=en_US" type="text/javascript"></script>
-        <script>
-            ymaps.ready(init);
-            function init() {{
-                var myMap = new ymaps.Map("map", {{
-                    center: [55.76, 37.64], // Set the initial center of the map
-                    zoom: 10 // Set the initial zoom level of the map
-                }});
-
-                // Iterate over the addresses and create placemarks for each address
-                {get_address_coords()}
-
-            }}
-        </script>
-        <style>body{{color:aliceblue;background-color:rgb(45,45,50);margin:0;}}#map{{width:70%;height:100%;position:absolute;right:0;}}#desc{{width:30%;height:max-content;}}</style>
-    </head>
-    <body><div id="map"></div><div id="desc">{get_text_info()}</div></body></html>
-    '''
-
-    # Save the HTML content to a file
-    open('renderedMap.html', 'w').write(html_content)
-
-    print('renderedMap.html file has been created. You can access it in current work directory anytime.')
-
-
-def get_text_info(data=parse_page()) -> str:
-    response = "Name\t\t\tAddress"
+def get_content_table(data=parse_page()) -> str:
+    response = "<table><th>ID</th><th>Ad Name+Link</th><th>Address</th>"
     addresses = [k[0] for k in data]
     names = [k[1] for k in data]
     links = [k[2] for k in data]
     for i in range(len(addresses)):
-        response+=f"<p><a href={links[i]}>{names[i]}</a>\t\t{addresses[i]}</p>"
+        response+=f"<tr><td>{i}</td><td><a href={links[i]}>{names[i]}</a></td><td id='table-address-{i}'>{addresses[i]}</td></tr>"
 
     return response
+
 
 def get_address_coords(data=parse_page()) -> str:
 
@@ -152,16 +125,38 @@ def get_address_coords(data=parse_page()) -> str:
                     balloonContent: '{links[i]}'
                 }});
                 myMap.geoObjects.add(placemark);
+                var tableRow = document.getElementById('table-address-{i}');
+
+                tableRow.addEventListener('click', function (event) {{
+                myMap.setCenter([{lat}, {lon}], 10);
+                }});
             '''
         except KeyError:
-            raise ValueError(f"Failed to retrieve coordinates for ad (name: {names[i]}, address: {addresses[i]}, link: {links[i]} from Yandex Geocoder API.")
+            raise ValueError(f"Failed to retrieve coordinates for ad (name: {names[i]}, address: {addresses[i]}, link: {links[i]}) from Yandex Geocoder API.")
 
     return placemark_js
 
 
+def map_renderer() -> str:
+    # Create HTML content
+    html_content = f'''
+    <!DOCTYPE html><html lang=en><head><title>Avito Favorites Map</title>
+        <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+        <script>
+        ymaps.ready(init);function init() {{var myMap = new ymaps.Map("map", {{center: [55.76, 37.64], zoom: 5}});
+                {get_address_coords()}
+                }}
+        </script><style>#map{{width:70%;height:97vh;position:absolute;right:10px;}}#desc{{width:28%;height:97vh;}}</style></head><body><div id=map></div><div id=desc>{get_content_table()}</div></html>
+    '''
+
+    # Save the HTML content to a file
+    open('renderedMap.html', 'w').write(html_content)
+
+    print('renderedMap.html file has been created. You can access it in current work directory anytime.')
+
 
 if __name__ == "__main__":
     print("Applying data to the map...")
-    display_addresses_on_map()
+    map_renderer()
     webbrowser.open(f"file://{os.getcwd()}/renderedMap.html")
     print("All done! You can check the resulting work in `map.html` anytime.")

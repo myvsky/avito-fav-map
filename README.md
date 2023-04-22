@@ -5,7 +5,7 @@
 
 [![Typing SVG](https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=10&duration=4000&color=A08BD0&multiline=true&repeat=false&width=510&height=75&lines=This+is+the+first+Mayevskaya's+problem+in+production;programming.+The+microservice+outputs+positions;of+ads+from+Avito+Favorites+list.)](https://git.io/typing-svg)
 
-### **_Approach_**
+### **_Description_**
 We use cookies from browser specified in `settings.ini`. 
 You may use one of the following browsers for cookies retrieving:
 |Name In Configuration|Full Name|
@@ -19,6 +19,7 @@ chromium|Chromium
 brave|Brave
 vivaldi|Vivaldi
 safari|Safari
+After using the microservice once, you can access received map anytime at path: `{path_to_avito-fav-map}/renderedMap.html`.
 
 ### **_Instructions_**
 1. Log in to Avito in any browser that is specified in the list above.
@@ -27,7 +28,7 @@ safari|Safari
 variables in `settings.ini`.
 4. Launch main.py.
 
-### Installation
+### **_Installation_**
 ```
 git clone https://github.com/mayevskaya/avito-fav-map
 cd avito-fav-map
