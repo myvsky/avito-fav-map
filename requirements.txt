@@ -1,0 +1,2 @@
+selenium==4.8.2
+browser_cookie3==0.17.1
