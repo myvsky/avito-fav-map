@@ -1,22 +1,28 @@
+# For applying and displaying ads' positions
+import requests
 import webbrowser
+
+# For `settings.ini`
 import os
 import configparser
-import ssl
-import requests
-import urllib.parse
-import browser_cookie3
 
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util import ssl_
+# For requesting Avito page 
+import browser_cookie3
+from playwright.sync_api import sync_playwright
+import time     # Time delay for loading DOM content
+
+# For parsing ads' names, links and positions
 from bs4 import BeautifulSoup
 
 
-# Get info from
+print("Setting configuration from `settings.ini`...")
+# Get configuration from settings
 config = configparser.ConfigParser()
 config.read('settings.ini')
 
 browser = config.get('general', 'browser')
 API_key = config.get('general', 'API_key')
+print("Done!\n")
 
 
 # Get cookiejar
@@ -35,44 +41,61 @@ def get_cj() -> dict:
         case "safari": cj = browser_cookie3.safari()
         case _: raise Exception("Wrong browser name found in `settings.ini`. Killing the task...")
 
+    print("Retrieving cookies from browser pointed in `settings.ini`...\n")
+    # Convert cookiejar in the right form
+    cj = [
+        {
+        "name": cookie.name,
+        "value": cookie.value,
+        "domain": cookie.domain,
+        "path": cookie.path
+        }
+        for cookie in cj
+        # Extract only Avito-relatable cookies
+        if ".avito.ru" in cookie.domain
+    ]
+
+    print("Done!\n")
     return cj
 
 
 # Get contents of page
-def get_page(cj=get_cj()) -> str:
+def parse_page(cj=get_cj()) -> list:
 
-    # Ciphers for encoding/decoding sensitive data that Avito use
-    CIPHERS = """ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:AES256-SHA"""
+    print("Launching Chromium webdriver, loading Avito Favorites page...")
+    # Launch Chromium webdriver
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
 
-    # Define SSL/TLS options
-    ssl_options = ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        # Create context for cookie uploading
+        ctx = browser.new_context()
+        ctx.add_cookies(cj)
 
-    # Create a requests session
-    session = requests.session()
+        # Load Avito Favorites page
+        page = ctx.new_page()
+        page.goto('https://avito.ru/favorites')
 
-    # Create a custom SSL context using ssl_.create_urllib3_context
-    ctx = ssl_.create_urllib3_context(ciphers=CIPHERS, cert_reqs=ssl.CERT_REQUIRED, options=ssl_options)
+        print("Collecting all ads from Favorites...")
+        # Look how many ads we have at current state
+        while 1:
+            # Check page content
+            html = page.content()
+            # Create soup object to track when we are done with loading all the ads
+            soup = BeautifulSoup(html, 'html.parser')
+            ads = soup.find_all(lambda x: x.has_attr('class') and "item-snippet-root" in ''.join(x['class']))
 
-    # Mount the custom SSL context to the session for HTTPS requests
-    adapter = HTTPAdapter(pool_maxsize=10, max_retries=3)
-    adapter.init_poolmanager(connections=10, maxsize=10, ssl_context=ctx)
-    session.mount("https://", adapter)
+            # If no more ads to be loaded, exit the loop
+            if len(ads) % 20 != 0: break
 
-    # Get a URL-encoded string
-    encoded_response = session.request('GET', 'https://www.avito.ru/favorites', cookies=cj)
+            # Else keep retrieving ads information
+            # Scroll down
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
+            # Time delay for more ads to load
+            time.sleep(0.5)
 
-    # Instantly decode it and return the result
-    return urllib.parse.unquote(encoded_response.text)
+        browser.close()
 
-
-# Parse addresses, names and links of ads
-def parse_page(html=get_page()) -> list:
-    # Parse document
-    soup = BeautifulSoup(html, 'html.parser')
-    
-    # Get all the ads
-    ads = soup.find_all(lambda x: x.has_attr('class') and "item-snippet-root" in ''.join(x['class']))
-    
+    print("Sorting addresses, name, links from each ad...")
     data = []
     for ad in ads:
         # To avoid absence of links, check it on NoneType
@@ -92,10 +115,12 @@ def parse_page(html=get_page()) -> list:
             name,
             link
             ])
+
+    print("Done!\n")
     return data
 
-
-def get_content_table(data=parse_page()) -> str:
+def get_content_table(data) -> str:
+    print("Creating table of contents for the map...")
     response = "<table><th>ID</th><th>Ad Name+Link</th><th>Address</th>"
     addresses = [k[0] for k in data]
     names = [k[1] for k in data]
@@ -103,11 +128,13 @@ def get_content_table(data=parse_page()) -> str:
     for i in range(len(addresses)):
         response+=f"<tr><td>{i}</td><td><a href={links[i]}>{names[i]}</a></td><td id='table-address-{i}'>{addresses[i]}</td></tr>"
 
+    print("Done!\n")
     return response
 
 
-def get_address_coords(data=parse_page()) -> str:
+def get_address_coords(data) -> str:
 
+    print("Creating scripts for displaying positions on the map...")
     # Sort information from list
     addresses = [k[0] for k in data]
     names = [k[1] for k in data]
@@ -121,42 +148,48 @@ def get_address_coords(data=parse_page()) -> str:
             lat, lon = coords.split()[::-1]
             placemark_js += f'''
                 var placemark = new ymaps.Placemark([{lat}, {lon}], {{
-                    hintContent: '{names[i].title()}',
-                    balloonContent: '{links[i]}'
+                    hintContent: "{names[i].title().replace('"', "'")}",
+                    balloonContent: "{links[i]}"
                 }});
                 myMap.geoObjects.add(placemark);
                 var tableRow = document.getElementById('table-address-{i}');
 
                 tableRow.addEventListener('click', function (event) {{
-                myMap.setCenter([{lat}, {lon}], 10);
+                myMap.setCenter([{lat}, {lon}], 15);
                 }});
             '''
         except KeyError:
             raise ValueError(f"Failed to retrieve coordinates for ad (name: {names[i]}, address: {addresses[i]}, link: {links[i]}) from Yandex Geocoder API.")
 
+    print("Done!\n")
     return placemark_js
 
 
-def map_renderer() -> str:
+def map_renderer(data) -> str:
+
+    print("Creating HTML document...")
     # Create HTML content
     html_content = f'''
     <!DOCTYPE html><html lang=en><head><title>Avito Favorites Map</title>
         <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
         <script>
         ymaps.ready(init);function init() {{var myMap = new ymaps.Map("map", {{center: [55.76, 37.64], zoom: 5}});
-                {get_address_coords()}
+                {get_address_coords(data=data)}
                 }}
-        </script><style>#map{{width:70%;height:97vh;position:absolute;right:10px;}}#desc{{width:28%;height:97vh;}}</style></head><body><div id=map></div><div id=desc>{get_content_table()}</div></html>
+        </script><style>#map{{width:70%;height:97vh;position:absolute;right:10px;}}#desc{{width:28%;height:97vh;}}</style></head>
+        <body><div id=map></div><div id=desc>{get_content_table(data=data)}</div></html>
     '''
 
     # Save the HTML content to a file
     open('renderedMap.html', 'w').write(html_content)
 
-    print('renderedMap.html file has been created. You can access it in current work directory anytime.')
+    print("""renderedMap.html file has been created. You can access it in current work directory anytime.\n
+             -------
+\nAll done. Finishing the process.""")
 
 
 if __name__ == "__main__":
     print("Applying data to the map...")
-    map_renderer()
+    map_renderer(data=parse_page())
     webbrowser.open(f"file://{os.getcwd()}/renderedMap.html")
     print("All done! You can check the resulting work in `map.html` anytime.")
