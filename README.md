@@ -1,5 +1,5 @@
 # **Avito Favorites Map**
-## _Display ads positions from Avito Favorites on Yandex Maps with Geocoder API_
+Display Avito Favorites ads locations on Yandex Maps with Geocoder API.
 
 ## **Description**
 We use cookies from browser specified in `settings.ini`. 
